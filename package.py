@@ -2,9 +2,9 @@
 # Created By: Virgil Dupras
 # Created On: 2011-06-20
 # Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
-# 
-# This software is licensed under the "GPL v3" License as described in the "LICENSE" file, 
-# which should be included with this package. The terms are also available at 
+#
+# This software is licensed under the "GPL v3" License as described in the "LICENSE" file,
+# which should be included with this package. The terms are also available at
 # http://www.hardcoded.net/licenses/gplv3_license
 
 import os
@@ -30,7 +30,7 @@ def package_windows(dev):
     app_version = get_module_version('core')
     if op.exists('dist'):
         shutil.rmtree('dist')
-    
+
     is64bit = platform.architecture()[0] == '64bit'
     exe = Executable(
         targetName = 'PdfMasher.exe',
@@ -44,25 +44,25 @@ def package_windows(dev):
         excludes = ['tkinter'],
     )
     freezer.Freeze()
-    
+
     # Now we have to copy pdfminder's cmap to our root dist dir (We'll set CMAP_PATH env at runtime)
     import pdfminer.cmap
     cmap_src = op.dirname(pdfminer.cmap.__file__)
     cmap_dest = op.join('dist', 'cmap')
     shutil.copytree(cmap_src, cmap_dest)
-    
+
     if not dev:
         # Copy qt plugins
         plugin_dest = op.join('dist', 'qt4_plugins')
         plugin_names = ['accessible', 'codecs', 'iconengines', 'imageformats']
         copy_qt_plugins(plugin_names, plugin_dest)
-        
-        # Compress with UPX 
+
+        # Compress with UPX
         if not is64bit: # UPX doesn't work on 64 bit
             libs = [name for name in os.listdir('dist') if op.splitext(name)[1] in ('.pyd', '.dll', '.exe')]
             for lib in libs:
                 print_and_do("upx --best \"dist\\{0}\"".format(lib))
-    
+
     help_path = 'build\\help'
     print("Copying {0} to dist\\help".format(help_path))
     shutil.copytree(help_path, 'dist\\help')
@@ -71,7 +71,7 @@ def package_windows(dev):
         # appropriate dlls.
         shutil.copy(find_in_path('msvcr100.dll'), 'dist')
         shutil.copy(find_in_path('msvcp100.dll'), 'dist')
-    
+
     if not dev:
         # AdvancedInstaller.com has to be in your PATH
         # this is so we don'a have to re-commit installer.aip at every version change
@@ -80,7 +80,7 @@ def package_windows(dev):
         print_and_do('AdvancedInstaller.com /edit installer_tmp.aip /SetVersion {}'.format(app_version))
         print_and_do('AdvancedInstaller.com /build installer_tmp.aip -force')
         os.remove('installer_tmp.aip')
-    
+
 
 def copy_cource_files(destpath, packages):
     if op.exists(destpath):
@@ -92,7 +92,7 @@ def copy_cource_files(destpath, packages):
     shutil.copy(op.join('images', 'logo_small.png'), destpath)
     shutil.copy(op.join('images', 'logo_big.png'), destpath)
     compileall.compile_dir(destpath)
-    
+
 def package_debian_distribution(distribution):
     app_version = get_module_version('core')
     version = '{}~{}'.format(app_version, distribution)
@@ -136,7 +136,10 @@ def main():
         if ISWINDOWS:
             package_windows(dev)
         elif ISLINUX:
-            distname, _, _ = platform.dist()
+            if not args.arch_pkg:
+                distname, _, _ = platform.dist()
+            else:
+                distname = 'arch'
             if distname == 'arch':
                 package_arch()
             else:
