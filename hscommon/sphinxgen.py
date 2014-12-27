@@ -1,15 +1,17 @@
 # Created By: Virgil Dupras
 # Created On: 2011-01-12
-# Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
-# 
-# This software is licensed under the "BSD" License as described in the "LICENSE" file, 
-# which should be included with this package. The terms are also available at 
+# Copyright 2014 Hardcoded Software (http://www.hardcoded.net)
+#
+# This software is licensed under the "BSD" License as described in the "LICENSE" file,
+# which should be included with this package. The terms are also available at
 # http://www.hardcoded.net/licenses/bsd_license
 
 import os.path as op
 import re
 
-from .build import print_and_do, read_changelog_file, filereplace
+from pkg_resources import load_entry_point
+
+from .build import read_changelog_file, filereplace
 
 CHANGELOG_FORMAT = """
 {version} ({date})
@@ -29,7 +31,7 @@ def tixgen(tixurl):
 
 def gen(basepath, destpath, changelogpath, tixurl, confrepl=None, confpath=None, changelogtmpl=None):
     """Generate sphinx docs with all bells and whistles.
-    
+
     basepath: The base sphinx source path.
     destpath: The final path of html files
     changelogpath: The path to the changelog file to insert in changelog.rst.
@@ -58,5 +60,14 @@ def gen(basepath, destpath, changelogpath, tixurl, confrepl=None, confpath=None,
     filereplace(changelogtmpl, changelog_out, changelog='\n'.join(rendered_logs))
     conf_out = op.join(basepath, 'conf.py')
     filereplace(confpath, conf_out, **confrepl)
-    cmd = 'sphinx-build "{}" "{}"'.format(basepath, destpath)
-    print_and_do(cmd)
+    # We used to call sphinx-build with print_and_do(), but the problem was that the virtualenv
+    # of the calling python wasn't correctly considered and caused problems with documentation
+    # relying on autodoc (which tries to import the module to auto-document, but fail because of
+    # missing dependencies which are in the virtualenv). Here, we do exactly what is done when
+    # calling the command from bash.
+    cmd = load_entry_point('Sphinx', 'console_scripts', 'sphinx-build')
+    try:
+        cmd(['sphinx-build', basepath, destpath])
+    except SystemExit:
+        print("Sphinx called sys.exit(), but we're cancelling it because we don't actually want to exit")
+

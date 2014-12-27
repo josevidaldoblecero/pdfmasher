@@ -1,6 +1,6 @@
 # Created By: Virgil Dupras
 # Created On: 2010-06-23
-# Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
+# Copyright 2014 Hardcoded Software (http://www.hardcoded.net)
 # 
 # This software is licensed under the "BSD" License as described in the "LICENSE" file, 
 # which should be included with this package. The terms are also available at 
@@ -49,7 +49,7 @@ def get_locale_name(lang):
     else:
         LANG2LOCALENAME = {'fr': 'fr_FR', 'de': 'de_DE', 'it': 'it_IT', 'zh_CN': 'zh_CN',
             'cs': 'cs_CZ', 'nl': 'nl_NL', 'hy': 'hy_AM', 'ru': 'ru_RU', 'uk': 'uk_UA',
-            'pt_BR': 'pt_BR', 'es': 'es_ES'}
+            'pt_BR': 'pt_BR', 'es': 'es_ES', 'vi': 'vi_VN'}
     if lang not in LANG2LOCALENAME:
         return None
     result = LANG2LOCALENAME[lang]

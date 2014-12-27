@@ -1,6 +1,6 @@
 # Created By: Virgil Dupras
 # Created On: 2008-04-20
-# Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
+# Copyright 2014 Hardcoded Software (http://www.hardcoded.net)
 
 # This software is licensed under the "BSD" License as described in the "LICENSE" file, 
 # which should be included with this package. The terms are also available at 
@@ -9,9 +9,10 @@
 from datetime import date
 import sqlite3 as sqlite
 
-from .. import io
 from ..testutil import eq_, assert_almost_equal
-from ..currency import Currency, RatesDB, CAD, EUR, PLN, USD
+from ..currency import Currency, RatesDB, CAD, EUR, USD
+
+PLN = Currency(code='PLN')
 
 def setup_module(module):
     global FOO
@@ -62,7 +63,7 @@ def test_db_with_connection():
 
 def test_corrupt_db(tmpdir):
     dbpath = str(tmpdir.join('foo.db'))
-    fh = io.open(dbpath, 'w')
+    fh = open(dbpath, 'w')
     fh.write('corrupted')
     fh.close()
     db = RatesDB(dbpath) # no crash. deletes the old file and start a new db

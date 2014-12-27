@@ -1,9 +1,9 @@
 # Created By: Virgil Dupras
 # Created On: 2011-01-11
-# Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
-# 
-# This software is licensed under the "BSD" License as described in the "LICENSE" file, 
-# which should be included with this package. The terms are also available at 
+# Copyright 2014 Hardcoded Software (http://www.hardcoded.net)
+#
+# This software is licensed under the "BSD" License as described in the "LICENSE" file,
+# which should be included with this package. The terms are also available at
 # http://www.hardcoded.net/licenses/bsd_license
 
 from io import StringIO
@@ -11,7 +11,6 @@ from io import StringIO
 from pytest import raises
 
 from ..testutil import eq_
-from .. import io
 from ..path import Path
 from ..util import *
 
@@ -65,6 +64,12 @@ def test_trailiter():
     eq_(list(trailiter(['foo', 'bar'])), [(None, 'foo'), ('foo', 'bar')])
     eq_(list(trailiter(['foo', 'bar'], skipfirst=True)), [('foo', 'bar')])
     eq_(list(trailiter([], skipfirst=True)), []) # no crash
+
+def test_iterconsume():
+    # We just want to make sure that we return *all* items and that we're not mistakenly skipping
+    # one.
+    eq_(list(range(2500)), list(iterconsume(list(range(2500)))))
+    eq_(list(reversed(range(2500))), list(iterconsume(list(range(2500)), reverse=False)))
 
 #--- String
 
@@ -189,79 +194,89 @@ class TestCase_modified_after:
         monkeyplus.patch_osstat('first', st_mtime=42)
         monkeyplus.patch_osstat('second', st_mtime=41)
         assert modified_after('first', 'second')
-    
+
     def test_second_is_modified_after(self, monkeyplus):
         monkeyplus.patch_osstat('first', st_mtime=42)
         monkeyplus.patch_osstat('second', st_mtime=43)
         assert not modified_after('first', 'second')
-    
+
     def test_same_mtime(self, monkeyplus):
         monkeyplus.patch_osstat('first', st_mtime=42)
         monkeyplus.patch_osstat('second', st_mtime=42)
         assert not modified_after('first', 'second')
-    
+
     def test_first_file_does_not_exist(self, monkeyplus):
         # when the first file doesn't exist, we return False
         monkeyplus.patch_osstat('second', st_mtime=42)
         assert not modified_after('does_not_exist', 'second') # no crash
-    
+
     def test_second_file_does_not_exist(self, monkeyplus):
         # when the second file doesn't exist, we return True
         monkeyplus.patch_osstat('first', st_mtime=42)
         assert modified_after('first', 'does_not_exist') # no crash
-    
+
+    def test_first_file_is_none(self, monkeyplus):
+        # when the first file is None, we return False
+        monkeyplus.patch_osstat('second', st_mtime=42)
+        assert not modified_after(None, 'second') # no crash
+
+    def test_second_file_is_none(self, monkeyplus):
+        # when the second file is None, we return True
+        monkeyplus.patch_osstat('first', st_mtime=42)
+        assert modified_after('first', None) # no crash
+
 
 class TestCase_delete_if_empty:
     def test_is_empty(self, tmpdir):
         testpath = Path(str(tmpdir))
         assert delete_if_empty(testpath)
-        assert not io.exists(testpath)
-    
+        assert not testpath.exists()
+
     def test_not_empty(self, tmpdir):
         testpath = Path(str(tmpdir))
-        io.mkdir(testpath + 'foo')
+        testpath['foo'].mkdir()
         assert not delete_if_empty(testpath)
-        assert io.exists(testpath)
-    
+        assert testpath.exists()
+
     def test_with_files_to_delete(self, tmpdir):
         testpath = Path(str(tmpdir))
-        io.open(testpath + 'foo', 'w')
-        io.open(testpath + 'bar', 'w')
+        testpath['foo'].open('w')
+        testpath['bar'].open('w')
         assert delete_if_empty(testpath, ['foo', 'bar'])
-        assert not io.exists(testpath)
-    
+        assert not testpath.exists()
+
     def test_directory_in_files_to_delete(self, tmpdir):
         testpath = Path(str(tmpdir))
-        io.mkdir(testpath + 'foo')
+        testpath['foo'].mkdir()
         assert not delete_if_empty(testpath, ['foo'])
-        assert io.exists(testpath)
-    
+        assert testpath.exists()
+
     def test_delete_files_to_delete_only_if_dir_is_empty(self, tmpdir):
         testpath = Path(str(tmpdir))
-        io.open(testpath + 'foo', 'w')
-        io.open(testpath + 'bar', 'w')
+        testpath['foo'].open('w')
+        testpath['bar'].open('w')
         assert not delete_if_empty(testpath, ['foo'])
-        assert io.exists(testpath)
-        assert io.exists(testpath + 'foo')
-    
+        assert testpath.exists()
+        assert testpath['foo'].exists()
+
     def test_doesnt_exist(self):
         # When the 'path' doesn't exist, just do nothing.
         delete_if_empty(Path('does_not_exist')) # no crash
-    
+
     def test_is_file(self, tmpdir):
         # When 'path' is a file, do nothing.
         p = Path(str(tmpdir)) + 'filename'
-        io.open(p, 'w').close()
+        p.open('w').close()
         delete_if_empty(p) # no crash
-    
+
     def test_ioerror(self, tmpdir, monkeypatch):
         # if an IO error happens during the operation, ignore it.
         def do_raise(*args, **kw):
             raise OSError()
-        
-        monkeypatch.setattr(io, 'rmdir', do_raise)
+
+        monkeypatch.setattr(Path, 'rmdir', do_raise)
         delete_if_empty(Path(str(tmpdir))) # no crash
-    
+
 
 class TestCase_open_if_filename:
     def test_file_name(self, tmpdir):
@@ -271,7 +286,7 @@ class TestCase_open_if_filename:
         assert close
         eq_(b'test_data', file.read())
         file.close()
-    
+
     def test_opened_file(self):
         sio = StringIO()
         sio.write('test_data')
@@ -279,14 +294,14 @@ class TestCase_open_if_filename:
         file, close = open_if_filename(sio)
         assert not close
         eq_('test_data', file.read())
-    
+
     def test_mode_is_passed_to_open(self, tmpdir):
         filepath = str(tmpdir.join('test.txt'))
         open(filepath, 'w').close()
         file, close = open_if_filename(filepath, 'a')
         eq_('a', file.mode)
         file.close()
-    
+
 
 class TestCase_FileOrPath:
     def test_path(self, tmpdir):
@@ -294,17 +309,17 @@ class TestCase_FileOrPath:
         open(filepath, 'wb').write(b'test_data')
         with FileOrPath(filepath) as fp:
             eq_(b'test_data', fp.read())
-    
+
     def test_opened_file(self):
         sio = StringIO()
         sio.write('test_data')
         sio.seek(0)
         with FileOrPath(sio) as fp:
             eq_('test_data', fp.read())
-    
+
     def test_mode_is_passed_to_open(self, tmpdir):
         filepath = str(tmpdir.join('test.txt'))
         open(filepath, 'w').close()
         with FileOrPath(filepath, 'a') as fp:
             eq_('a', fp.mode)
-    
+

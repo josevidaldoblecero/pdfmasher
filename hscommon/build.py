@@ -1,10 +1,13 @@
 # Created By: Virgil Dupras
 # Created On: 2009-03-03
-# Copyright 2013 Hardcoded Software (http://www.hardcoded.net)
+# Copyright 2014 Hardcoded Software (http://www.hardcoded.net)
 
-# This software is licensed under the "BSD" License as described in the "LICENSE" file, 
-# which should be included with this package. The terms are also available at 
+# This software is licensed under the "BSD" License as described in the "LICENSE" file,
+# which should be included with this package. The terms are also available at
 # http://www.hardcoded.net/licenses/bsd_license
+
+"""This module is a collection of function to help in HS apps build process.
+"""
 
 import os
 import sys
@@ -26,6 +29,8 @@ from .plat import ISWINDOWS
 from .util import modified_after, find_in_path, ensure_folder, delete_files_with_pattern
 
 def print_and_do(cmd):
+    """Prints ``cmd`` and executes it in the shell.
+    """
     print(cmd)
     p = Popen(cmd, shell=True)
     return p.wait()
@@ -91,7 +96,7 @@ def filereplace(filename, outfilename=None, **kwargs):
     fp.close()
     # We can't use str.format() because in some files, there might be {} characters that mess with it.
     for key, item in kwargs.items():
-        contents = contents.replace('{{{}}}'.format(key), item) 
+        contents = contents.replace('{{{}}}'.format(key), item)
     fp = open(outfilename, 'wt', encoding='utf-8')
     fp.write(contents)
     fp.close()
@@ -101,12 +106,22 @@ def get_module_version(modulename):
     return mod.__version__
 
 def setup_package_argparser(parser):
-    parser.add_argument('--sign', dest='sign_identity',
-        help="Sign app under specified identity before packaging (OS X only)")
-    parser.add_argument('--nosign', action='store_true', dest='nosign',
-        help="Don't sign the packaged app (OS X only)")
-    parser.add_argument('--src-pkg', action='store_true', dest='src_pkg',
-        help="Build a tar.gz of the current source.")
+    parser.add_argument(
+        '--sign', dest='sign_identity',
+        help="Sign app under specified identity before packaging (OS X only)"
+    )
+    parser.add_argument(
+        '--nosign', action='store_true', dest='nosign',
+        help="Don't sign the packaged app (OS X only)"
+    )
+    parser.add_argument(
+        '--src-pkg', action='store_true', dest='src_pkg',
+        help="Build a tar.gz of the current source."
+    )
+    parser.add_argument(
+        '--arch-pkg', action='store_true', dest='arch_pkg',
+        help="Force Arch Linux packaging type, regardless of distro name."
+    )
 
 # `args` come from an ArgumentParser updated with setup_package_argparser()
 def package_cocoa_app_in_dmg(app_path, destfolder, args):
@@ -115,7 +130,7 @@ def package_cocoa_app_in_dmg(app_path, destfolder, args):
     # a valid signature.
     if args.sign_identity:
         sign_identity = "Developer ID Application: {}".format(args.sign_identity)
-        result = print_and_do('codesign --force --sign "{}" "{}"'.format(sign_identity, app_path))
+        result = print_and_do('codesign --force --deep --sign "{}" "{}"'.format(sign_identity, app_path))
         if result != 0:
             print("ERROR: Signing failed. Aborting packaging.")
             return
@@ -125,6 +140,10 @@ def package_cocoa_app_in_dmg(app_path, destfolder, args):
     build_dmg(app_path, destfolder)
 
 def build_dmg(app_path, destfolder):
+    """Builds a DMG volume with application at ``app_path`` and puts it in ``dest_path``.
+
+    The name of the resulting DMG volume is determined by the app's name and version.
+    """
     print(repr(op.join(app_path, 'Contents', 'Info.plist')))
     plist = plistlib.readPlist(op.join(app_path, 'Contents', 'Info.plist'))
     workpath = tempfile.mkdtemp()
@@ -153,7 +172,7 @@ sysconfig.get_config_h_filename = lambda: op.join(op.dirname(__file__), 'pyconfi
 """)
 
 def add_to_pythonpath(path):
-    """Adds `path` to both PYTHONPATH env and sys.path.
+    """Adds ``path`` to both ``PYTHONPATH`` env and ``sys.path``.
     """
     abspath = op.abspath(path)
     pythonpath = os.environ.get('PYTHONPATH', '')
@@ -166,6 +185,12 @@ def add_to_pythonpath(path):
 # in setuptools. We copy the packages *without data* in a build folder and then build the plugin
 # from there.
 def copy_packages(packages_names, dest, create_links=False, extra_ignores=None):
+    """Copy python packages ``packages_names`` to ``dest``, spurious data.
+
+    Copy will happen without tests, testdata, mercurial data or C extension module source with it.
+    ``py2app`` include and exclude rules are **quite** funky, and doing this is the only reliable
+    way to make sure we don't end up with useless stuff in our app.
+    """
     if ISWINDOWS:
         create_links = False
     if not extra_ignores:
@@ -208,7 +233,7 @@ def copy_qt_plugins(folder_names, dest): # This is only for Windows
 def build_debian_changelog(changelogpath, destfile, pkgname, from_version=None,
         distribution='precise', fix_version=None):
     """Builds a debian changelog out of a YAML changelog.
-    
+
     Use fix_version to patch the top changelog to that version (if, for example, there was a
     packaging error and you need to quickly fix it)
     """
@@ -218,7 +243,7 @@ def build_debian_changelog(changelogpath, destfile, pkgname, from_version=None,
         desc = desc.replace('  ', ' ')
         result = desc.split('*')
         return [s.strip() for s in result if s.strip()]
-    
+
     ENTRY_MODEL = "{pkg} ({version}~{distribution}) {distribution}; urgency=low\n\n{changes}\n -- Virgil Dupras <hsoft@hardcoded.net>  {date}\n\n"
     CHANGE_MODEL = "  * {description}\n"
     changelogs = read_changelog_file(changelogpath)
@@ -254,7 +279,7 @@ def read_changelog_file(filename):
             date = next(it)
             description = next(it)
             yield version, date, description
-    
+
     with open(filename, 'rt', encoding='utf-8') as fp:
         contents = fp.read()
     splitted = re_changelog_header.split(contents)[1:] # the first item is empty
@@ -274,7 +299,7 @@ class OSXAppStructure:
         self.resources = op.join(self.contents, 'Resources')
         self.frameworks = op.join(self.contents, 'Frameworks')
         self.infoplist = op.join(self.contents, 'Info.plist')
-    
+
     def create(self, infoplist):
         ensure_empty_folder(self.dest)
         os.makedirs(self.macos)
@@ -282,24 +307,24 @@ class OSXAppStructure:
         os.mkdir(self.frameworks)
         copy(infoplist, self.infoplist)
         open(op.join(self.contents, 'PkgInfo'), 'wt').write("APPLxxxx")
-    
+
     def copy_executable(self, executable):
         info = plistlib.readPlist(self.infoplist)
         self.executablename = info['CFBundleExecutable']
         self.executablepath = op.join(self.macos, self.executablename)
         copy(executable, self.executablepath)
-    
+
     def copy_resources(self, *resources, use_symlinks=False):
         for path in resources:
             resource_dest = op.join(self.resources, op.basename(path))
             action = symlink if use_symlinks else copy
             action(op.abspath(path), resource_dest)
-    
+
     def copy_frameworks(self, *frameworks):
         for path in frameworks:
             framework_dest = op.join(self.frameworks, op.basename(path))
             copy(path, framework_dest)
-    
+
 
 def create_osx_app_structure(dest, executable, infoplist, resources=None, frameworks=None,
         symlink_resources=False):
@@ -323,7 +348,7 @@ class OSXFrameworkStructure:
         self.headers = op.join(self.contents, 'Headers')
         self.infoplist = op.join(self.resources, 'Info.plist')
         self._update_executable_path()
-    
+
     def _update_executable_path(self):
         if not op.exists(self.infoplist):
             self.executablename = self.executablepath = None
@@ -331,7 +356,7 @@ class OSXFrameworkStructure:
         info = plistlib.readPlist(self.infoplist)
         self.executablename = info['CFBundleExecutable']
         self.executablepath = op.join(self.contents, self.executablename)
-    
+
     def create(self, infoplist):
         ensure_empty_folder(self.dest)
         os.makedirs(self.contents)
@@ -339,7 +364,7 @@ class OSXFrameworkStructure:
         os.mkdir(self.headers)
         copy(infoplist, self.infoplist)
         self._update_executable_path()
-    
+
     def create_symlinks(self):
         # Only call this after create() and copy_executable()
         rel = lambda path: op.relpath(path, self.dest)
@@ -347,40 +372,31 @@ class OSXFrameworkStructure:
         os.symlink(rel(self.executablepath), op.join(self.dest, self.executablename))
         os.symlink(rel(self.headers), op.join(self.dest, 'Headers'))
         os.symlink(rel(self.resources), op.join(self.dest, 'Resources'))
-    
+
     def copy_executable(self, executable):
         copy(executable, self.executablepath)
-    
+
     def copy_resources(self, *resources, use_symlinks=False):
         for path in resources:
             resource_dest = op.join(self.resources, op.basename(path))
             action = symlink if use_symlinks else copy
             action(op.abspath(path), resource_dest)
-    
+
     def copy_headers(self, *headers, use_symlinks=False):
         for path in headers:
             header_dest = op.join(self.headers, op.basename(path))
             action = symlink if use_symlinks else copy
             action(op.abspath(path), header_dest)
-    
 
-def build_cocoalib_xibless(dest='cocoa/autogen', withfairware=True):
+
+def build_cocoalib_xibless(dest='cocoa/autogen'):
     import xibless
     ensure_folder(dest)
     FNPAIRS = [
         ('progress.py', 'ProgressController_UI'),
         ('error_report.py', 'HSErrorReportWindow_UI'),
+        ('about.py', 'HSAboutBox_UI'),
     ]
-    if withfairware:
-        FNPAIRS += [
-            ('fairware_about.py', 'HSFairwareAboutBox_UI'),
-            ('demo_reminder.py', 'HSDemoReminder_UI'),
-            ('enter_code.py', 'HSEnterCode_UI'),
-        ]
-    else:
-        FNPAIRS += [
-            ('about.py', 'HSAboutBox_UI'),
-        ]
     for srcname, dstname in FNPAIRS:
         srcpath = op.join('cocoalib', 'ui', srcname)
         dstpath = op.join(dest, dstname)
@@ -409,7 +425,7 @@ def collect_stdlib_dependencies(script, dest_folder, extra_deps=None):
         if not (path.startswith(sysprefix) or path.startswith(real_lib_prefix)):
             return False
         return True
-    
+
     ensure_folder(dest_folder)
     mf = modulefinder.ModuleFinder()
     mf.run_script(script)
@@ -442,6 +458,8 @@ def collect_stdlib_dependencies(script, dest_folder, extra_deps=None):
     # There's a couple of rather big exe files in the distutils folder that we absolutely don't
     # need. Remove them.
     delete_files_with_pattern(op.join(dest_folder, 'distutils'), '*.exe')
+    # And, finally, create an empty "site.py" that Python needs around on startup.
+    open(op.join(dest_folder, 'site.py'), 'w').close()
 
 def fix_qt_resource_file(path):
     # pyrcc4 under Windows, if the locale is non-english, can produce a source file with a date

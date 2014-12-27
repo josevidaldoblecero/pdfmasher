@@ -77,6 +77,24 @@ def merge_po_and_preserve(source, dest):
         destpo.append(entry)
     destpo.save()
 
+def normalize_all_pos(base_folder):
+    """Normalize the format of .po files in base_folder.
+    
+    When getting POs from external sources, such as Transifex, we end up with spurious diffs because
+    of a difference in the way line wrapping is handled. It wouldn't be a big deal if it happened
+    once, but these spurious diffs keep overwriting each other, and it's annoying.
+    
+    Our PO files will keep polib's format. Call this function to ensure that freshly pulled POs
+    are of the right format before committing them.
+    """
+    langs = get_langs(base_folder)
+    for lang in langs:
+        pofolder = op.join(base_folder, lang, LC_MESSAGES)
+        pofiles = files_with_ext(pofolder, '.po')
+        for pofile in pofiles:
+            p = polib.pofile(pofile)
+            p.save()
+
 #--- Cocoa
 def all_lproj_paths(folder):
     return files_with_ext(folder, '.lproj')
@@ -93,8 +111,10 @@ def strings2pot(target, dest):
     # We're reading an en.lproj file. We only care about the righthand part of the translation.
     re_trans = re.compile(r'".*" = "(.*)";')
     strings = re_trans.findall(contents)
-    ensure_file(dest)
-    po = polib.pofile(dest)
+    if op.exists(dest):
+        po = polib.pofile(dest)
+    else:
+        po = polib.POFile()
     for s in dedupe(strings):
         s = unescape_cocoa_strings(s)
         entry = po.find(s)
@@ -104,7 +124,7 @@ def strings2pot(target, dest):
         # we don't know or care about a line number so we put 0
         entry.occurrences.append((target, '0'))
         entry.occurrences = dedupe(entry.occurrences)
-    po.save()
+    po.save(dest)
 
 def allstrings2pot(lprojpath, dest, excludes=None):
     allstrings = files_with_ext(lprojpath, '.strings')
