@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import os
 import os.path as op
 
@@ -19,15 +20,16 @@ def configure(conf):
     conf.env.LIBPATH_PYEMBED = op.abspath('../build')
     # I did a lot of fiddling-around, but I didn't find how to tell WAF the Python library name
     # to look for without making the whole compilation process fail, so I just create a symlink
-    # with the name WAF is looking for. 
-    if not op.exists('../build/libpython3.2.dylib'):
-        os.symlink('../build/Python', '../build/libpython3.2.dylib')
+    # with the name WAF is looking for.
+    versioned_dylib_path = '../build/libpython{}.dylib'.format(sys.version[:3])
+    if not op.exists(versioned_dylib_path):
+        os.symlink('../build/Python', versioned_dylib_path)
     # The rest is standard WAF code that you can find the the python and macapp demos.
     conf.load('compiler_c python')
-    conf.check_python_version((3,2,0))
+    conf.check_python_version((3,3,0))
     conf.check_python_headers()
     conf.env.FRAMEWORK_COCOA = 'Cocoa'
-    conf.env.ARCH_COCOA = ['i386', 'x86_64']
+    conf.env.ARCH_COCOA = ['x86_64']
     # Add cocoalib dir to the framework search path so we can find Sparkle.
     conf.env.CFLAGS = ['-F'+op.abspath('../cocoalib')]
     conf.env.LINKFLAGS = ['-F'+op.abspath('../cocoalib')]
@@ -43,7 +45,7 @@ def build(ctx):
     cocoalib_src = [cocoalib_node.find_node(usename + '.m') for usename in cocoalib_uses]
     project_folders = ['autogen', 'controllers', 'views']
     project_src = sum([ctx.srcnode.ant_glob('%s/*.m' % folder) for folder in project_folders], ctx.srcnode.ant_glob('*.m'))
-    
+
     # Compile
     ctx.program(
         # "pyembed" takes care of the include and linking stuff to compile an app that embed Python.
