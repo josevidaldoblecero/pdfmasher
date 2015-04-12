@@ -1,5 +1,16 @@
 # PdfMasher
 
+## Current status: unmaintained
+
+I'm the only maintainter of PdfMasher and I've lost interest in ebooks a good while ago (back to
+good old paper). Therefore, this app is unmaintained.
+
+If you're interested in assuming maintainership of this app, don't hesitate to fork it off. When
+you feel you're on a good enough track to assume maintainership, it will be a pleasure for me to
+point to your fork. Just tell me.
+
+## Contents of this folder
+
 This package contains the source for PdfMasher. Its documentation is
 [available online][documentation]. Here's how this source tree is organised:
 
